@@ -1,7 +1,8 @@
-## [0.0.2] - 2026-01-11
+## [0.0.3] - 2026-01-11
 ### Added
-- Created sidebar + “My Books” landing page UI.
-- Mock book grid using fake data.
-- Backend-ready `getBooks()` wrapper for later PHP integration.
+- Working Settings page (color schemes + dark mode + books-per-line).
+- Working Support page (contact info, links, version display, two people cards).
+- Theme persistence via localStorage.
 ### Changed
-- Tailwind theme extended with tealish colors and shadows.
+- UI colors now driven by CSS variables so all schemes work in light and dark mode.
+- Book grid supports 3–10 columns (desktop) with auto-scaling cards.
