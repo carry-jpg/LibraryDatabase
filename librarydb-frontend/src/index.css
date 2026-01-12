@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+/* ---------- Theme variables ---------- */
+/* Defaults (light) */
+html {
+  --app-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --border: #eef2f7;
+
+  --text-primary: #37474f;
+  --text-secondary: #90a4ae;
+
+  --accent: #26c6da;
+  --accent-hover: #00bcd4;
+
+  --active-bg: rgba(0, 0, 0, 0.04);
+}
+
+/* Defaults (dark) */
+html.dark {
+  --app-bg: #0b1220;
+  --panel-bg: #0f172a;
+  --sidebar-bg: #0f172a;
+  --border: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #e5e7eb;
+  --text-secondary: #94a3b8;
+
+  /* Accent stays scheme-defined unless overridden */
+  --active-bg: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Color schemes ---------- */
+/* 1) Teal (default) */
+html[data-theme="teal"] {
+  --accent: #26c6da;
+  --accent-hover: #00bcd4;
+  --sidebar-bg: #ffffff;
+}
+html.dark[data-theme="teal"] {
+  --sidebar-bg: #0f172a;
+}
+
+/* 2) Cream */
+html[data-theme="cream"] {
+  --accent: #d4a373;
+  --accent-hover: #c9925a;
+  --sidebar-bg: #fbf6ef;
+}
+html.dark[data-theme="cream"] {
+  --accent: #e7b786;
+  --accent-hover: #d9a46f;
+  --sidebar-bg: #111827;
+}
+
+/* 3) Lavender */
+html[data-theme="lavender"] {
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --sidebar-bg: #f6f3ff;
+}
+html.dark[data-theme="lavender"] {
+  --accent: #a78bfa;
+  --accent-hover: #8b5cf6;
+  --sidebar-bg: #0f172a;
+}
+
+/* 4) Forest */
+html[data-theme="forest"] {
+  --accent: #2f855a;
+  --accent-hover: #276749;
+  --sidebar-bg: #f1faf5;
+}
+html.dark[data-theme="forest"] {
+  --accent: #34d399;
+  --accent-hover: #10b981;
+  --sidebar-bg: #0b1220;
+}
+
+/* 5) Sunset */
+html[data-theme="sunset"] {
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --sidebar-bg: #fff7ed;
+}
+html.dark[data-theme="sunset"] {
+  --accent: #fb923c;
+  --accent-hover: #f97316;
+  --sidebar-bg: #0f172a;
+}
+
+/* 6) Ocean */
+html[data-theme="ocean"] {
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --sidebar-bg: #f3f7ff;
+}
+html.dark[data-theme="ocean"] {
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --sidebar-bg: #0b1220;
+}
+
+/* 7) Rose */
+html[data-theme="rose"] {
+  --accent: #e11d48;
+  --accent-hover: #be123c;
+  --sidebar-bg: #fff1f2;
+}
+html.dark[data-theme="rose"] {
+  --accent: #fb7185;
+  --accent-hover: #f43f5e;
+  --sidebar-bg: #0b1220;
+}
+
+/* 8) Mono */
+html[data-theme="mono"] {
+  --accent: #111827;
+  --accent-hover: #000000;
+  --sidebar-bg: #ffffff;
+}
+html.dark[data-theme="mono"] {
+  --accent: #e5e7eb;
+  --accent-hover: #ffffff;
+  --sidebar-bg: #0f172a;
+}
