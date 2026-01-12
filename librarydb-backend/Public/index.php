@@ -1,66 +1,58 @@
 <?php
 declare(strict_types=1);
 
-$config = require __DIR__ . '/../src/Config/config.php';
+$ROOT = dirname(__DIR__);
+$SRC  = $ROOT . DIRECTORY_SEPARATOR . 'src';
 
-require __DIR__ . '/../src/Db/Database.php';
+$config = require $SRC . '/Config/config.php';
 
-require __DIR__ . '/../src/Services/OpenLibraryClient.php';
+require_once $SRC . '/Database.php';
+require_once $SRC . '/Controller.php';
 
-require __DIR__ . '/../src/Repositories/BookRepository.php';
-require __DIR__ . '/../src/Repositories/StockRepository.php';
-require __DIR__ . '/../src/Repositories/RentRepository.php';
+require_once $SRC . '/OpenLibraryClient.php';
+require_once $SRC . '/BookMapper.php';
 
-require __DIR__ . '/../src/BookMapper.php';
-require __DIR__ . '/../src/Controllers/Controller.php';
-require __DIR__ . '/../src/Controllers/BookController.php';
-require __DIR__ . '/../src/Controllers/StockController.php';
-require __DIR__ . '/../src/Controllers/RentController.php';
+require_once $SRC . '/BookRepository.php';
+require_once $SRC . '/StockRepository.php';
 
-$pdo = Database::pdo($config);
+require_once $SRC . '/BookController.php';
+require_once $SRC . '/StockController.php';
 
-$openLibrary = new OpenLibraryClient($config['openlibrary']['base']);
+// CORS (Vite dev)
+header('Access-Control-Allow-Origin: http://localhost:5173');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept');
+header('Access-Control-Max-Age: 86400');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
 
-$bookRepo  = new BookRepository($pdo);
-$stockRepo = new StockRepository($pdo);
-$rentRepo  = new RentRepository($pdo);
+$db = new Database($config['db']['dsn'], $config['db']['user'], $config['db']['pass']);
+$ol = new OpenLibraryClient($config['openlibrary']['base']);
 
-$bookCtrl  = new BookController($openLibrary, $bookRepo);
-$stockCtrl = new StockController($stockRepo, $bookRepo, $openLibrary);
-$rentCtrl  = new RentController($rentRepo);
+$booksRepo = new BookRepository($db);
+$stockRepo = new StockRepository($db);
 
-$method = $_SERVER['REQUEST_METHOD'];
-$path   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$bookController  = new BookController($booksRepo, $ol);
+$stockController = new StockController($stockRepo, $booksRepo, $ol);
+
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 try {
-  // Health
-  if ($method === 'GET' && $path === '/api/health') {
+    if ($method === 'GET' && $path === '/api/stock/list') { $stockController->list(); exit; }
+    if ($method === 'POST' && $path === '/api/stock/set') { $stockController->set(); exit; }
+
+    if ($method === 'GET' && $path === '/api/openlibrary/search') { $bookController->openLibrarySearch(); exit; }
+    if ($method === 'GET' && $path === '/api/openlibrary/edition') { $bookController->openLibraryEdition(); exit; }
+    if ($method === 'POST' && $path === '/api/books/import-edition') { $bookController->importEdition(); exit; }
+
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([ 'ok' => true ]);
-    exit;
-  }
-
-  // OpenLibrary passthrough helpers
-  if ($method === 'GET' && $path === '/api/openlibrary/search') { $bookCtrl->openLibrarySearch(); exit; }
-  if ($method === 'GET' && $path === '/api/openlibrary/edition') { $bookCtrl->openLibraryEdition(); exit; }
-
-  // Local books
-  if ($method === 'POST' && $path === '/api/books/import-edition') { $bookCtrl->importEdition(); exit; }
-
-  // Stock
-  if ($method === 'POST' && $path === '/api/stock/set') { $stockCtrl->set(); exit; }
-  if ($method === 'GET'  && $path === '/api/stock/list') { $stockCtrl->list(); exit; }
-
-  // Renting
-  if ($method === 'POST' && $path === '/api/rents/checkout') { $rentCtrl->checkout(); exit; }
-  if ($method === 'POST' && $path === '/api/rents/return')   { $rentCtrl->return(); exit; }
-  if ($method === 'GET'  && $path === '/api/rents/active')   { $rentCtrl->active(); exit; }
-
-  http_response_code(404);
-  header('Content-Type: application/json; charset=utf-8');
-  echo json_encode([ 'error' => 'Not found' ]);
+    http_response_code(404);
+    echo json_encode(['error' => 'Not found', 'path' => $path], JSON_UNESCAPED_SLASHES);
 } catch (Throwable $e) {
-  http_response_code(500);
-  header('Content-Type: application/json; charset=utf-8');
-  echo json_encode([ 'error' => $e->getMessage() ]);
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(500);
+    echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_SLASHES);
 }

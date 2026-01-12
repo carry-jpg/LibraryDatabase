@@ -14,10 +14,10 @@ function Row({ label, value }) {
 }
 
 export default function BookDetailsModal({ open, book, onClose }) {
-  const subjects = book?.subjects ?? []; // OpenLibrary-style tags/subjects [page:0]
+  const subjects = book?.subjects ?? [];
 
   return (
-    <Modal open={open} title={book?.title ?? "Book"} onClose={onClose}>
+    <Modal open={open} title="Book" onClose={onClose}>
       {!book ? null : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Cover */}
@@ -34,6 +34,7 @@ export default function BookDetailsModal({ open, book, onClose }) {
                     <span
                       key={s}
                       className="text-xs px-2 py-1 rounded-full border border-[color:var(--border)] bg-[color:var(--active-bg)] text-[color:var(--text-primary)]"
+                      title={s}
                     >
                       {s}
                     </span>
@@ -46,9 +47,18 @@ export default function BookDetailsModal({ open, book, onClose }) {
           {/* Details */}
           <div className="md:col-span-2">
             <div className="mb-4">
-              <div className="text-sm text-[color:var(--text-secondary)]">{book.author}</div>
+              <div className="text-xl font-semibold break-words leading-tight line-clamp-2 text-[color:var(--text-primary)]">
+                {book.title}
+              </div>
+
+              <div className="text-sm break-words text-[color:var(--text-secondary)] mt-1">
+                {book.author}
+              </div>
+
               {book.publisher && (
-                <div className="text-sm text-[color:var(--text-secondary)]">Publisher: {book.publisher}</div>
+                <div className="text-sm break-words text-[color:var(--text-secondary)]">
+                  Publisher: {book.publisher}
+                </div>
               )}
             </div>
 
@@ -70,7 +80,7 @@ export default function BookDetailsModal({ open, book, onClose }) {
 
             <div className="mt-6">
               <div className="text-sm font-semibold text-[color:var(--text-primary)] mb-2">Description</div>
-              <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
+              <p className="text-sm leading-6 text-[color:var(--text-secondary)] break-words">
                 {book.description || "No description available."}
               </p>
             </div>
