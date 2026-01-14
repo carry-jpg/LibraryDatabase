@@ -60,6 +60,21 @@ function normalizeYear(publishDate) {
 }
 
 function NavItem({ icon, label, active = false, onClick }) {
+  // icon can be:
+  // - a React element: <Library size={20} />
+  // - a component (lucide forwardRef): Library
+  // - (rare) a string
+  let iconNode = null;
+
+  if (React.isValidElement(icon)) {
+    iconNode = icon;
+  } else if (typeof icon === "function" || typeof icon === "object") {
+    // Render component types safely
+    iconNode = React.createElement(icon, { size: 20 });
+  } else {
+    iconNode = icon ?? null;
+  }
+
   return (
     <button
       type="button"
@@ -78,16 +93,17 @@ function NavItem({ icon, label, active = false, onClick }) {
             : "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"
         }
       >
-        {icon}
+        {iconNode}
       </span>
+
       <span className="text-[15px] font-medium tracking-wide">{label}</span>
+
       {active && (
         <div className="absolute left-0 top-1 bottom-1 w-[3px] bg-[color:var(--accent)] rounded-r-md" />
       )}
     </button>
   );
 }
-
 
 function BookCard({ book }) {
   const coverSrc =
@@ -98,23 +114,43 @@ function BookCard({ book }) {
   return (
     <div className="group flex flex-col">
       <div className="relative aspect-[1/1.5] w-full mb-3 shadow-card group-hover:shadow-card-hover transition-all duration-300 rounded-[4px] overflow-hidden bg-gray-100">
-        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+        <img
+          src={coverSrc}
+          alt={book.title}
+          className="w-full h-full object-cover"
+        />
         <div className="absolute bottom-0 left-2">
           <div className="relative">
-            <Bookmark size={28} className="text-gray-400/80 fill-gray-400/80" strokeWidth={0} />
-            <Bookmark size={28} className="text-white absolute top-0.5 left-0" strokeWidth={1.5} />
+            <Bookmark
+              size={28}
+              className="text-gray-400/80 fill-gray-400/80"
+              strokeWidth={0}
+            />
+            <Bookmark
+              size={28}
+              className="text-white absolute top-0.5 left-0"
+              strokeWidth={1.5}
+            />
           </div>
         </div>
       </div>
 
       <div className="pr-2 min-h-[64px]">
-        <h3 className="font-bold text-[color:var(--text-primary)] text-[15px] leading-tight mb-1 line-clamp-2" title={book.title}>
+        <h3
+          className="font-bold text-[color:var(--text-primary)] text-[15px] leading-tight mb-1 line-clamp-2"
+          title={book.title}
+        >
           {book.title}
         </h3>
-        <p className="text-sm text-[color:var(--text-secondary)] line-clamp-1" title={book.author}>
+        <p
+          className="text-sm text-[color:var(--text-secondary)] line-clamp-1"
+          title={book.author}
+        >
           {book.author}
         </p>
-        {book.quantity === 0 && <p className="text-xs text-red-500 font-bold mt-1">Out of Stock</p>}
+        {book.quantity === 0 && (
+          <p className="text-xs text-red-500 font-bold mt-1">Out of Stock</p>
+        )}
       </div>
     </div>
   );
@@ -234,14 +270,15 @@ export default function App() {
 
   const [theme, setTheme] = useState(() => loadLS("ui.theme", "teal"));
   const [darkMode, setDarkMode] = useState(() => loadLS("ui.darkMode", false));
-  const [booksPerLine, setBooksPerLine] = useState(() => clamp(loadLS("ui.booksPerLine", 5), 3, 10));
+  const [booksPerLine, setBooksPerLine] = useState(() =>
+    clamp(loadLS("ui.booksPerLine", 5), 3, 10)
+  );
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMode, setAuthMode] = useState("login"); // "login" | "register"
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
-
 
   const [searchTerm, setSearchTerm] = useState("");
   const [books, setBooks] = useState([]);
@@ -268,7 +305,7 @@ export default function App() {
     (async () => {
       setAuthLoading(true);
       try {
-        const data = await apiGet("/auth/me"); // -> /api/auth/me via http.js prefixing
+        const data = await apiGet("/auth/me"); // -> /api/auth/me via http.js
         if (!alive) return;
         setUser(data?.user ?? null);
       } catch {
@@ -318,8 +355,6 @@ export default function App() {
     }
   }
 
-
-
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
@@ -347,7 +382,6 @@ export default function App() {
     }
   }
 
-
   useEffect(() => {
     refresh();
   }, []);
@@ -365,7 +399,9 @@ export default function App() {
           (b.isbn || "").toLowerCase().includes(q)
         );
       })
-      .filter((b) => (activeLetter === "ALL" ? true : firstLetterOf(b.title) === activeLetter))
+      .filter((b) =>
+        activeLetter === "ALL" ? true : firstLetterOf(b.title) === activeLetter
+      )
       .filter((b) => (filters.onlyInStock ? (b.quantity ?? 0) > 0 : true))
       .filter((b) => (b.condition ?? 1) >= filters.minCondition)
       .filter((b) => (filters.author ? b.author === filters.author : true))
@@ -383,44 +419,26 @@ export default function App() {
         sortBy === "title"
           ? a.title
           : sortBy === "author"
-            ? a.author
-            : sortBy === "year"
-              ? (normalizeYear(a.publish_date) ?? 0)
-              : (a.condition ?? 0);
+          ? a.author
+          : sortBy === "year"
+          ? normalizeYear(a.publish_date) ?? 0
+          : a.condition ?? 0;
 
       const bv =
         sortBy === "title"
           ? b.title
           : sortBy === "author"
-            ? b.author
-            : sortBy === "year"
-              ? (normalizeYear(b.publish_date) ?? 0)
-              : (b.condition ?? 0);
+          ? b.author
+          : sortBy === "year"
+          ? normalizeYear(b.publish_date) ?? 0
+          : b.condition ?? 0;
 
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
   }, [books, searchTerm, activeLetter, filters, sortBy, sortDir]);
 
-
   const gridColsClass = GRID_CLASS_BY_COLS[booksPerLine] ?? "xl:grid-cols-5";
-
-  const StockPlaceholder = () => (
-    <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-[color:var(--text-primary)]">Edit stock</h1>
-      <p className="text-sm text-[color:var(--text-secondary)] mb-4">
-        Backend is connected. Next: implement CRUD UI for /api/stock/set and OpenLibrary autofill.
-      </p>
-
-      <button
-        type="button"
-        onClick={refresh}
-        className="px-4 py-2 rounded-md bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)] text-white font-semibold"
-      >
-        Refresh library data
-      </button>
-    </div>
-  );
 
   if (authLoading) {
     return (
@@ -452,16 +470,19 @@ export default function App() {
               DB
             </div>
             <div className="leading-tight">
-              <div className="text-lg font-semibold text-[color:var(--text-primary)]">LibraryDB</div>
-              <div className="text-xs text-[color:var(--text-secondary)]">Placeholder brand</div>
+              <div className="text-lg font-semibold text-[color:var(--text-primary)]">
+                LibraryDB
+              </div>
+              <div className="text-xs text-[color:var(--text-secondary)]">
+                Placeholder brand
+              </div>
             </div>
           </div>
 
           <nav className="flex-1 px-4 space-y-8 overflow-y-auto py-4">
             <div className="space-y-1">
               <NavItem
-                icon={<Library
-                size={20} />}
+                icon={<Library size={20} />}
                 label="Library"
                 active={activePage === "library"}
                 onClick={() => setActivePage("library")}
@@ -469,14 +490,14 @@ export default function App() {
 
               {user?.role === "admin" ? (
                 <NavItem
-                  icon={<Pencil
-                  size={20} />}
+                  icon={<Pencil size={20} />}
                   label="Edit stock"
                   active={activePage === "stock"}
                   onClick={() => setActivePage("stock")}
                 />
               ) : null}
 
+              {/* This one used to pass FolderPlus component directly; NavItem now handles it */}
               <NavItem
                 icon={FolderPlus}
                 label="Add Collection"
@@ -484,23 +505,53 @@ export default function App() {
               />
             </div>
 
-
             <div className="space-y-1">
-              <NavItem icon={<CreditCard size={20} />} label="Lending" onClick={() => alert("Placeholder: Lending")} />
-              <NavItem icon={<Users size={20} />} label="Managers" onClick={() => alert("Placeholder: Managers")} />
-              <NavItem icon={<Barcode size={20} />} label="Barcodes" onClick={() => alert("Placeholder: Barcodes")} />
+              <NavItem
+                icon={<CreditCard size={20} />}
+                label="Lending"
+                onClick={() => alert("Placeholder: Lending")}
+              />
+              <NavItem
+                icon={<Users size={20} />}
+                label="Managers"
+                onClick={() => alert("Placeholder: Managers")}
+              />
+              <NavItem
+                icon={<Barcode size={20} />}
+                label="Barcodes"
+                onClick={() => alert("Placeholder: Barcodes")}
+              />
             </div>
 
             <div className="space-y-1">
-              <NavItem icon={<LayoutDashboard size={20} />} label="Dashboards" onClick={() => alert("Placeholder: Dashboards")} />
-              <NavItem icon={<FileText size={20} />} label="Reports" onClick={() => alert("Placeholder: Reports")} />
+              <NavItem
+                icon={<LayoutDashboard size={20} />}
+                label="Dashboards"
+                onClick={() => alert("Placeholder: Dashboards")}
+              />
+              <NavItem
+                icon={<FileText size={20} />}
+                label="Reports"
+                onClick={() => alert("Placeholder: Reports")}
+              />
             </div>
           </nav>
 
           <div className="p-4 space-y-1 bg-[color:var(--sidebar-bg)] border-t border-[color:var(--border)]">
-            <NavItem icon={<SettingsIcon size={20} />} label="Settings" active={activePage === "settings"} onClick={() => setActivePage("settings")} />
-            <NavItem icon={<HelpCircle size={20} />} label="Support" active={activePage === "support"} onClick={() => setActivePage("support")} />
-            <NavItem icon={LogOut} size={20} label="Logout" onClick={handleLogout} />
+            <NavItem
+              icon={<SettingsIcon size={20} />}
+              label="Settings"
+              active={activePage === "settings"}
+              onClick={() => setActivePage("settings")}
+            />
+            <NavItem
+              icon={<HelpCircle size={20} />}
+              label="Support"
+              active={activePage === "support"}
+              onClick={() => setActivePage("support")}
+            />
+            {/* This one used to pass LogOut component directly + invalid size prop on NavItem */}
+            <NavItem icon={LogOut} label="Logout" onClick={handleLogout} />
           </div>
         </aside>
 
@@ -538,7 +589,10 @@ export default function App() {
                   <div className="flex items-center rounded-full pl-5 pr-1 py-1 gap-3 bg-[color:var(--active-bg)] border border-[color:var(--border)]">
                     <span className="text-sm font-semibold">Count&apos;s Library</span>
                     <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white bg-gray-800">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
+                      <img
+                        src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                        alt="avatar"
+                      />
                     </div>
                   </div>
                 </div>
@@ -589,7 +643,10 @@ export default function App() {
                         title="Toggle sort direction"
                       >
                         <span>{sortDir === "asc" ? "Asc" : "Desc"}</span>
-                        <ArrowDown size={14} className={sortDir === "asc" ? "opacity-60 rotate-180" : "opacity-60"} />
+                        <ArrowDown
+                          size={14}
+                          className={sortDir === "asc" ? "opacity-60 rotate-180" : "opacity-60"}
+                        />
                       </button>
                     </div>
 
@@ -611,7 +668,9 @@ export default function App() {
                       onClick={() => setActiveLetter(ch)}
                       className={[
                         "cursor-pointer transition-colors",
-                        ch === activeLetter ? "text-[color:var(--accent)]" : "hover:text-[color:var(--accent)]",
+                        ch === activeLetter
+                          ? "text-[color:var(--accent)]"
+                          : "hover:text-[color:var(--accent)]",
                       ].join(" ")}
                       title={ch === "ALL" ? "All" : ch}
                     >
@@ -624,9 +683,20 @@ export default function App() {
                   {activeLetter === "ALL" ? "All books" : activeLetter}
                 </h2>
 
-                <div className={["grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5", gridColsClass, "gap-x-8 gap-y-12 items-start"].join(" ")}>
+                <div
+                  className={[
+                    "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+                    gridColsClass,
+                    "gap-x-8 gap-y-12 items-start",
+                  ].join(" ")}
+                >
                   {filtered.map((b) => (
-                    <button key={b.stock_id} type="button" onClick={() => setSelectedBook(b)} className="text-left focus:outline-none">
+                    <button
+                      key={b.stockid ?? `${b.openlibraryid}-${b.condition}`}
+                      type="button"
+                      onClick={() => setSelectedBook(b)}
+                      className="text-left focus:outline-none"
+                    >
                       <div className="rounded-md hover:bg-[color:var(--active-bg)] p-2 -m-2 transition-colors">
                         <BookCard book={b} />
                       </div>
@@ -642,7 +712,11 @@ export default function App() {
                   setFilters={setFilters}
                 />
 
-                <BookDetailsModal open={!!selectedBook} book={selectedBook} onClose={() => setSelectedBook(null)} />
+                <BookDetailsModal
+                  open={!!selectedBook}
+                  book={selectedBook}
+                  onClose={() => setSelectedBook(null)}
+                />
               </>
             )}
           </div>

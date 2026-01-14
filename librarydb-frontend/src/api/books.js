@@ -1,9 +1,11 @@
+// File: src/api/books.js
 import { apiGet } from "./http";
 
 export async function getBooks() {
-  const rows = await apiGet("/api/stock/list");
-  const arr = Array.isArray(rows) ? rows : [];
+  // Backend route: GET /api/stock/list
+  const rows = await apiGet("/stock/list");
 
+  const arr = Array.isArray(rows) ? rows : [];
   return arr.map((r) => ({
     stockid: Number(r.stockid ?? r.stockId ?? r.id ?? 0),
     openlibraryid: String(r.openlibraryid ?? r.olid ?? ""),
