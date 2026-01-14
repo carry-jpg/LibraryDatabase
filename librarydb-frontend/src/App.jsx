@@ -24,6 +24,7 @@ import SettingsPage from "./pages/Settings";
 import SupportPage from "./pages/Support";
 import BookDetailsModal from "./components/BookDetailsModal";
 import FiltersPanel from "./components/FiltersPanel";
+import { apiGet, apiPost } from "./api/http";
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -87,7 +88,13 @@ function NavItem({ icon, label, active = false, onClick }) {
   );
 }
 
+
 function BookCard({ book }) {
+  const coverSrc =
+    book.coverurl ||
+    book.cover_url ||
+    "https://via.placeholder.com/400x600?text=No+Cover";
+
   return (
     <div className="group flex flex-col">
       <div className="relative aspect-[1/1.5] w-full mb-3 shadow-card group-hover:shadow-card-hover transition-all duration-300 rounded-[4px] overflow-hidden bg-gray-100">
@@ -126,12 +133,115 @@ const GRID_CLASS_BY_COLS = {
 
 const LETTERS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""), "#", "ALL"];
 
+function AuthScreen({ mode, setMode, onLogin, onRegister, error, busy }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <div className="min-h-screen bg-colorvar--app-bg text-colorvar--text-primary flex items-center justify-center px-6">
+      <div className="w-full max-w-md rounded-xl border border-colorvar--border bg-colorvar--panel-bg p-6 shadow-xl">
+        <div className="mb-4">
+          <div className="text-2xl font-bold">
+            {mode === "login" ? "Login" : "Register"}
+          </div>
+          <div className="text-sm text-colorvar--text-secondary mt-1">
+            {mode === "login"
+              ? "Sign in to continue."
+              : "Create your account to continue."}
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 text-red-800 px-3 py-2 text-sm">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-colorvar--text-secondary mb-1">
+              Email
+            </label>
+            <input
+              className="w-full px-3 py-2 rounded-md border border-colorvar--border bg-transparent"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              autoComplete="email"
+            />
+          </div>
+
+          {mode === "register" ? (
+            <div>
+              <label className="block text-xs text-colorvar--text-secondary mb-1">
+                Name
+              </label>
+              <input
+                className="w-full px-3 py-2 rounded-md border border-colorvar--border bg-transparent"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </div>
+          ) : null}
+
+          <div>
+            <label className="block text-xs text-colorvar--text-secondary mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              className="w-full px-3 py-2 rounded-md border border-colorvar--border bg-transparent"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min 8 characters"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const payload = { email: email.trim(), password };
+              if (mode === "login") onLogin(payload);
+              else onRegister({ ...payload, name: name.trim() });
+            }}
+            className="w-full px-4 py-2 rounded-md bg-colorvar--accent hover:bg-colorvar--accent-hover text-white font-semibold disabled:opacity-60"
+          >
+            {busy ? "Please wait..." : mode === "login" ? "Login" : "Register"}
+          </button>
+
+          <button
+            type="button"
+            className="w-full px-4 py-2 rounded-md border border-colorvar--border hover:bg-colorvar--active-bg text-sm"
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
+          >
+            {mode === "login"
+              ? "Need an account? Register"
+              : "Already have an account? Login"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState("library"); // library | stock | settings | support
 
   const [theme, setTheme] = useState(() => loadLS("ui.theme", "teal"));
   const [darkMode, setDarkMode] = useState(() => loadLS("ui.darkMode", false));
   const [booksPerLine, setBooksPerLine] = useState(() => clamp(loadLS("ui.booksPerLine", 5), 3, 10));
+
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [authError, setAuthError] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [books, setBooks] = useState([]);
@@ -154,6 +264,63 @@ export default function App() {
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    let alive = true;
+    (async () => {
+      setAuthLoading(true);
+      try {
+        const data = await apiGet("/auth/me"); // -> /api/auth/me via http.js prefixing
+        if (!alive) return;
+        setUser(data?.user ?? null);
+      } catch {
+        if (!alive) return;
+        setUser(null);
+      } finally {
+        if (alive) setAuthLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function handleLogin({ email, password }) {
+    setAuthError("");
+    setAuthBusy(true);
+    try {
+      const data = await apiPost("/auth/login", { email, password });
+      setUser(data.user);
+    } catch (e) {
+      setAuthError(String(e?.message || e));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleRegister({ email, name, password }) {
+    setAuthError("");
+    setAuthBusy(true);
+    try {
+      const data = await apiPost("/auth/register", { email, name, password });
+      setUser(data.user);
+    } catch (e) {
+      setAuthError(String(e?.message || e));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await apiPost("/auth/logout", {});
+    } finally {
+      setUser(null);
+      setAuthMode("login");
+    }
+  }
+
+
+
+  useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
     if (darkMode) root.classList.add("dark");
@@ -173,21 +340,23 @@ export default function App() {
     setLoadError("");
     try {
       const list = await getBooks();
-      setBooks(list);
+      setBooks(Array.isArray(list) ? list : []);
     } catch (e) {
       setLoadError(String(e?.message || e));
       setBooks([]);
     }
   }
 
+
   useEffect(() => {
     refresh();
   }, []);
 
   const filtered = useMemo(() => {
+    const src = Array.isArray(books) ? books : [];
     const q = searchTerm.trim().toLowerCase();
 
-    const result = books
+    const result = src
       .filter((b) => {
         if (!q) return true;
         return (
@@ -233,6 +402,7 @@ export default function App() {
     });
   }, [books, searchTerm, activeLetter, filters, sortBy, sortDir]);
 
+
   const gridColsClass = GRID_CLASS_BY_COLS[booksPerLine] ?? "xl:grid-cols-5";
 
   const StockPlaceholder = () => (
@@ -252,6 +422,27 @@ export default function App() {
     </div>
   );
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-colorvar--app-bg text-colorvar--text-primary flex items-center justify-center">
+        <div className="text-colorvar--text-secondary">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthScreen
+        mode={authMode}
+        setMode={setAuthMode}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        error={authError}
+        busy={authBusy}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
       <div className="flex min-h-screen font-sans">
@@ -268,11 +459,31 @@ export default function App() {
 
           <nav className="flex-1 px-4 space-y-8 overflow-y-auto py-4">
             <div className="space-y-1">
-              <NavItem icon={<Library size={20} />} label="Library" active={activePage === "library"} onClick={() => setActivePage("library")} />
-              <NavItem icon={<Pencil size={20} />} label="Edit stock" active={activePage === "stock"} onClick={() => setActivePage("stock")} />
-              <NavItem icon={<FolderPlus size={20} />} label="Add Collection" onClick={() => alert("Placeholder: Add Collection")} />
-              <NavItem icon={<Upload size={20} />} label="Publish" onClick={() => alert("Placeholder: Publish")} />
+              <NavItem
+                icon={<Library
+                size={20} />}
+                label="Library"
+                active={activePage === "library"}
+                onClick={() => setActivePage("library")}
+              />
+
+              {user?.role === "admin" ? (
+                <NavItem
+                  icon={<Pencil
+                  size={20} />}
+                  label="Edit stock"
+                  active={activePage === "stock"}
+                  onClick={() => setActivePage("stock")}
+                />
+              ) : null}
+
+              <NavItem
+                icon={FolderPlus}
+                label="Add Collection"
+                onClick={() => alert("Placeholder Add Collection")}
+              />
             </div>
+
 
             <div className="space-y-1">
               <NavItem icon={<CreditCard size={20} />} label="Lending" onClick={() => alert("Placeholder: Lending")} />
@@ -289,7 +500,7 @@ export default function App() {
           <div className="p-4 space-y-1 bg-[color:var(--sidebar-bg)] border-t border-[color:var(--border)]">
             <NavItem icon={<SettingsIcon size={20} />} label="Settings" active={activePage === "settings"} onClick={() => setActivePage("settings")} />
             <NavItem icon={<HelpCircle size={20} />} label="Support" active={activePage === "support"} onClick={() => setActivePage("support")} />
-            <NavItem icon={<LogOut size={20} />} label="Logout" onClick={() => alert("Placeholder: Logout")} />
+            <NavItem icon={LogOut} size={20} label="Logout" onClick={handleLogout} />
           </div>
         </aside>
 

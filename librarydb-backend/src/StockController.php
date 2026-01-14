@@ -9,10 +9,12 @@ final class StockController extends Controller
         private OpenLibraryClient $ol
     ) {}
 
+    // POST /api/stock/set
     public function set(): void
     {
         try {
             $b = $this->body();
+
             $olid = $this->requireString($b, 'olid');
             $quality = $this->requireInt($b, 'quality');
             $quantity = $this->requireInt($b, 'quantity');
@@ -31,12 +33,27 @@ final class StockController extends Controller
         }
     }
 
+    // GET /api/stock/list
     public function list(): void
     {
         try {
             $this->json($this->stock->listStockWithBook());
         } catch (Throwable $e) {
             $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/stock/delete
+    public function delete(): void
+    {
+        try {
+            $b = $this->body();
+            $stockId = $this->requireInt($b, 'stockId');
+
+            $this->stock->deleteById($stockId);
+            $this->json(['ok' => true]);
+        } catch (Throwable $e) {
+            $this->json(['error' => $e->getMessage()], 400);
         }
     }
 }

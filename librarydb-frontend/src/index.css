@@ -1,9 +1,19 @@
+/* index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root { height: 100%; }
-body { margin: 0; }
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--text-primary);
+}
 
 /* ---------- Theme variables ---------- */
 /* Defaults (light) */
@@ -11,15 +21,16 @@ html {
   --app-bg: #ffffff;
   --panel-bg: #ffffff;
   --sidebar-bg: #ffffff;
-  --border: #eef2f7;
 
-  --text-primary: #37474f;
-  --text-secondary: #90a4ae;
+  --border: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
 
   --accent: #26c6da;
   --accent-hover: #00bcd4;
 
-  --active-bg: rgba(0, 0, 0, 0.04);
+  --active-bg: rgba(2, 6, 23, 0.04);
 }
 
 /* Defaults (dark) */
@@ -27,7 +38,8 @@ html.dark {
   --app-bg: #0b1220;
   --panel-bg: #0f172a;
   --sidebar-bg: #0f172a;
-  --border: rgba(255, 255, 255, 0.08);
+
+  --border: rgba(255, 255, 255, 0.10);
 
   --text-primary: #e5e7eb;
   --text-secondary: #94a3b8;
@@ -129,4 +141,48 @@ html.dark[data-theme="mono"] {
   --accent: #e5e7eb;
   --accent-hover: #ffffff;
   --sidebar-bg: #0f172a;
+}
+
+/* ---------- Utility classes for your JSX ---------- */
+/* These match your classNames like bg-colorvar--panel-bg, text-colorvar--text-primary, etc. */
+@layer utilities {
+  .bg-colorvar--app-bg {
+    background-color: var(--app-bg);
+  }
+  .bg-colorvar--panel-bg {
+    background-color: var(--panel-bg);
+  }
+  .bg-colorvar--sidebar-bg {
+    background-color: var(--sidebar-bg);
+  }
+  .bg-colorvar--active-bg {
+    background-color: var(--active-bg);
+  }
+
+  .text-colorvar--text-primary {
+    color: var(--text-primary);
+  }
+  .text-colorvar--text-secondary {
+    color: var(--text-secondary);
+  }
+
+  .border-colorvar--border {
+    border-color: var(--border);
+  }
+
+  .bg-colorvar--accent {
+    background-color: var(--accent);
+  }
+  .hover\:bg-colorvar--accent-hover:hover {
+    background-color: var(--accent-hover);
+  }
+
+  /* Make “outline” buttons readable in light mode too */
+  .btn-outline {
+    color: var(--text-primary);
+    border-color: var(--border);
+  }
+  html.dark .btn-outline {
+    color: var(--text-secondary);
+  }
 }

@@ -1,52 +1,85 @@
 <?php
 declare(strict_types=1);
 
-$ROOT = dirname(__DIR__);
-$SRC  = $ROOT . DIRECTORY_SEPARATOR . 'src';
+// File: index.php
 
-$config = require $SRC . '/Config/config.php';
+// ---------- Boot ----------
+session_start();
 
-require_once $SRC . '/Database.php';
-require_once $SRC . '/Controller.php';
+$config = require __DIR__ . '/config.php';
 
-require_once $SRC . '/OpenLibraryClient.php';
-require_once $SRC . '/BookMapper.php';
+require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/Controller.php';
 
-require_once $SRC . '/BookRepository.php';
-require_once $SRC . '/StockRepository.php';
+// Existing app classes (adjust paths if your structure differs)
+require_once __DIR__ . '/OpenLibraryClient.php';
+require_once __DIR__ . '/BookMapper.php';
+require_once __DIR__ . '/BookRepository.php';
+require_once __DIR__ . '/StockRepository.php';
+require_once __DIR__ . '/BookController.php';
+require_once __DIR__ . '/StockController.php';
 
-require_once $SRC . '/BookController.php';
-require_once $SRC . '/StockController.php';
+// New auth classes
+require_once __DIR__ . '/UserRepository.php';
+require_once __DIR__ . '/AuthController.php';
 
-// CORS (Vite dev)
-header('Access-Control-Allow-Origin: http://localhost:5173');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept');
-header('Access-Control-Max-Age: 86400');
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+// ---------- CORS (safe defaults) ----------
+// If you always access backend via Vite proxy (/api -> localhost:8000), this won't hurt. [file:591]
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin !== '') {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Headers: Content-Type, Accept');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-$db = new Database($config['db']['dsn'], $config['db']['user'], $config['db']['pass']);
-require_once $SRC . '/OpenLibraryClient.php';
-$ol = new OpenLibraryClient($config['openlibrary']['base']);
-
-$booksRepo = new BookRepository($db);
-$stockRepo = new StockRepository($db);
-
-$bookController  = new BookController($booksRepo, $ol);
-$stockController = new StockController($stockRepo, $booksRepo, $ol);
-
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+// ---------- Routing ----------
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
 try {
+    $db = new Database($config['db']);
+    $pdo = $db->pdo();
+
+    // Build dependencies (constructor args may need adjusting to your actual class signatures)
+    $ol = new OpenLibraryClient($config['openlibrary']['base'] ?? 'https://openlibrary.org');
+
+    $bookRepo = new BookRepository($pdo);
+    $bookMapper = new BookMapper();
+    $stockRepo = new StockRepository($pdo);
+
+    $bookController = new BookController($bookRepo, $bookMapper, $ol);
+    $stockController = new StockController($stockRepo, $bookRepo);
+
+    $userRepo = new UserRepository($pdo);
+    $authController = new AuthController($userRepo);
+
+    // ---------- Auth ----------
+    if ($method === 'GET' && $path === '/api/auth/me') { $authController->me(); exit; }
+    if ($method === 'POST' && $path === '/api/auth/register') { $authController->register(); exit; }
+    if ($method === 'POST' && $path === '/api/auth/login') { $authController->login(); exit; }
+    if ($method === 'POST' && $path === '/api/auth/logout') { $authController->logout(); exit; }
+
+    // ---------- OpenLibrary ----------
     if ($method === 'GET' && $path === '/api/openlibrary/search') { $bookController->openLibrarySearch(); exit; }
     if ($method === 'GET' && $path === '/api/openlibrary/edition') { $bookController->openLibraryEdition(); exit; }
 
+    // Bulk resolve
+    if ($method === 'POST' && $path === '/api/openlibrary/resolve-editions') { $bookController->resolveEditions(); exit; }
+
+    // Books import
+    if ($method === 'POST' && $path === '/api/books/import-edition') { $bookController->importEdition(); exit; }
+
+    // ---------- Stock ----------
     if ($method === 'GET' && $path === '/api/stock/list') { $stockController->list(); exit; }
     if ($method === 'POST' && $path === '/api/stock/set') { $stockController->set(); exit; }
+    if ($method === 'POST' && $path === '/api/stock/delete') { $stockController->delete(); exit; }
 
     header('Content-Type: application/json; charset=utf-8');
     http_response_code(404);

@@ -1,3 +1,4 @@
+// File: src/api/http.js
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 export const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api";
 
@@ -30,7 +31,11 @@ async function parseJson(res) {
 
 export async function apiGet(path) {
   const url = joinUrl(API_BASE_URL, apiPath(path));
-  const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    credentials: "include",
+  });
   const data = await parseJson(res);
   if (!res.ok) throw new Error(data?.error || `GET ${url} failed: ${res.status}`);
   return data;
@@ -41,6 +46,7 @@ export async function apiPost(path, body) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
+    credentials: "include",
     body: JSON.stringify(body ?? {}),
   });
   const data = await parseJson(res);
