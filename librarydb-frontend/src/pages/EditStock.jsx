@@ -323,12 +323,29 @@ export default function EditStock({ onSaved }) {
     setSaveErr("");
     setSaveMsg("");
 
-    // If edition JSON is loaded, use its key (/books/OL...M) to avoid any mismatch.
+    // Require a loaded edition (forces "choose edition" workflow).
+    if (!selectedEdition || selectedEdition?.error) {
+      setSaveErr("Please select an edition and click “Load edition info” before saving.");
+      return;
+    }
+
     const loadedOlid = extractOlidFromKey(selectedEdition?.key);
-    const olid = String(loadedOlid || selectedOlid || "").trim().toUpperCase();
+    const olid = String(loadedOlid || "").trim().toUpperCase();
 
     if (!olid || !olid.endsWith("M")) {
-      setSaveErr("Pick/paste an edition OLID ending with 'M' (example: OL7353617M).");
+      setSaveErr("Selected edition is invalid. Please pick a valid edition OLID ending with 'M'.");
+      return;
+    }
+
+    const q = Number(quality);
+    const qty = Number(quantity);
+
+    if (!Number.isFinite(q) || q < 1 || q > 5) {
+      setSaveErr("Quality must be between 1 and 5.");
+      return;
+    }
+    if (!Number.isFinite(qty) || qty < 0) {
+      setSaveErr("Quantity must be 0 or more.");
       return;
     }
 
@@ -336,11 +353,10 @@ export default function EditStock({ onSaved }) {
     try {
       await setStock({
         olid,
-        quality: Number(quality),
-        quantity: Number(quantity),
+        quality: q,
+        quantity: qty,
         importIfMissing: true,
       });
-
       setSaveMsg("Saved.");
       await loadStock();
       onSaved?.();
@@ -350,6 +366,7 @@ export default function EditStock({ onSaved }) {
       setSaving(false);
     }
   }
+
 
   function goToTypedPage() {
     const p = Math.max(1, Math.min(totalPages, parseInt(gotoPage || "1", 10) || 1));
@@ -731,18 +748,19 @@ export default function EditStock({ onSaved }) {
               <button
                 type="button"
                 onClick={saveStock}
-                disabled={saving}
+                disabled={saving || loadingEdition || !edVM || !!selectedEdition?.error}
                 className="w-full px-4 py-2 rounded-md bg-colorvar--accent hover:bg-colorvar--accent-hover text-white font-semibold disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
+              {saving ? "Saving..." : "Save"}
 
               {saveMsg && <div className="text-sm text-green-700 mt-3">{saveMsg}</div>}
               {saveErr && <div className="text-sm text-red-600 mt-3">{saveErr}</div>}
             </div>
           </div>
         </div>
-      </Modal>
-    </div>
+      </Modal >
+    </div >
   );
 }

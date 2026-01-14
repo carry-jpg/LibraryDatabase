@@ -111,6 +111,8 @@ function BookCard({ book }) {
     book.cover_url ||
     "https://via.placeholder.com/400x600?text=No+Cover";
 
+  const wear = Number(book.condition ?? 0); // 1..5 (from backend quality)
+
   return (
     <div className="group flex flex-col">
       <div className="relative aspect-[1/1.5] w-full mb-3 shadow-card group-hover:shadow-card-hover transition-all duration-300 rounded-[4px] overflow-hidden bg-gray-100">
@@ -119,6 +121,13 @@ function BookCard({ book }) {
           alt={book.title}
           className="w-full h-full object-cover"
         />
+
+        {Number.isFinite(wear) && wear > 0 ? (
+          <div className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-black bg-black/70 text-white border border-white/10">
+            {wear}/5
+          </div>
+        ) : null}
+
         <div className="absolute bottom-0 left-2">
           <div className="relative">
             <Bookmark
@@ -155,6 +164,7 @@ function BookCard({ book }) {
     </div>
   );
 }
+
 
 const GRID_CLASS_BY_COLS = {
   3: "xl:grid-cols-3",
@@ -419,19 +429,19 @@ export default function App() {
         sortBy === "title"
           ? a.title
           : sortBy === "author"
-          ? a.author
-          : sortBy === "year"
-          ? normalizeYear(a.publish_date) ?? 0
-          : a.condition ?? 0;
+            ? a.author
+            : sortBy === "year"
+              ? normalizeYear(a.publish_date) ?? 0
+              : a.condition ?? 0;
 
       const bv =
         sortBy === "title"
           ? b.title
           : sortBy === "author"
-          ? b.author
-          : sortBy === "year"
-          ? normalizeYear(b.publish_date) ?? 0
-          : b.condition ?? 0;
+            ? b.author
+            : sortBy === "year"
+              ? normalizeYear(b.publish_date) ?? 0
+              : b.condition ?? 0;
 
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
