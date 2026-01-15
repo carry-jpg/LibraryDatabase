@@ -24,7 +24,7 @@ Backend default DSN (if you don’t override it) is:
 
 The backend entry point is `Public/index.php` and all routes are served under `/api/*`. [file:2]
 
-**Option A: Use Apache in XAMPP (recommended)**
+**Use Apache in XAMPP**
 1. Copy the backend project into `C:\xampp\htdocs\TomeNest` (or similar).
 2. Start **Apache** in XAMPP.
 3. Your backend base URL will typically be:
