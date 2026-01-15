@@ -26,6 +26,22 @@ final class UserRepository
         return $row ?: null;
     }
 
+    public function listPublic(): array
+    {
+        $st = $this->pdo->query(
+            "SELECT userid, email, name, role, createdat FROM users ORDER BY createdat DESC, userid DESC"
+        );
+        $rows = $st->fetchAll();
+        return is_array($rows) ? $rows : [];
+    }
+
+    public function setRole(int $userId, string $role): bool
+    {
+        $st = $this->pdo->prepare("UPDATE users SET role = :role WHERE userid = :id");
+        $st->execute(['role' => $role, 'id' => $userId]);
+        return $st->rowCount() === 1;
+    }
+
     public function create(string $email, string $name, string $passwordHash, string $role): int
     {
         $st = $this->pdo->prepare(

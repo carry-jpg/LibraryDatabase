@@ -1,108 +1,118 @@
-// File: src/components/WishlistButton.jsx
+// src/components/WishlistButton.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { isWishlisted, toggleWishlist } from "../state/wishlistStore";
+import { apiGet, apiPost } from "../api/http";
+
+// Simple module cache so 50 book cards don't trigger 50 network calls
+let cachedIds = null;
+let idsPromise = null;
+
+async function loadWishlistIds() {
+  if (Array.isArray(cachedIds)) return cachedIds;
+  if (idsPromise) return idsPromise;
+  idsPromise = apiGet("wishlist/ids")
+    .then((ids) => {
+      cachedIds = Array.isArray(ids) ? ids.map((x) => String(x).toUpperCase()) : [];
+      return cachedIds;
+    })
+    .finally(() => {
+      idsPromise = null;
+    });
+  return idsPromise;
+}
 
 export default function WishlistButton({ item, className = "" }) {
   const id = String(item?.openlibraryid || "").trim().toUpperCase();
 
-  const [filled, setFilled] = useState(() => (id ? isWishlisted(id) : false));
+  const [filled, setFilled] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [anim, setAnim] = useState(false);
   const tRef = useRef(null);
 
-  const disabled = !id;
+  const disabled = !id || busy;
 
   const title = useMemo(
     () => (filled ? "Remove from wishlist" : "Add to wishlist"),
     [filled]
   );
 
-  // Keep state in sync if wishlist changes elsewhere (e.g. from Wishlist page remove)
+  // initial state from server
   useEffect(() => {
+    let alive = true;
     if (!id) return;
 
-    const sync = () => setFilled(isWishlisted(id));
-    window.addEventListener("wishlist:changed", sync);
-    return () => window.removeEventListener("wishlist:changed", sync);
+    (async () => {
+      try {
+        const ids = await loadWishlistIds();
+        if (!alive) return;
+        setFilled(ids.includes(id));
+      } catch {
+        // ignore; button will still work on click
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
-  function onClick(e) {
+  async function onClick(e) {
     e.preventDefault();
     e.stopPropagation();
     if (disabled) return;
 
-    const next = toggleWishlist(item);
-    setFilled(next);
+    setBusy(true);
+    try {
+      const payload = {
+        olid: id,
+        title: item?.title ?? null,
+        author: item?.author ?? null,
+        coverurl: item?.coverurl ?? null,
+        releaseyear: item?.releaseyear ?? null,
+      };
 
-    // small “pop” animation
-    setAnim(true);
-    clearTimeout(tRef.current);
-    tRef.current = setTimeout(() => setAnim(false), 260);
+      const res = await apiPost("wishlist/toggle", payload); // { wished: true/false } [file:87]
+      const next = !!res?.wished;
+
+      setFilled(next);
+
+      // update cache
+      const ids = await loadWishlistIds().catch(() => null);
+      if (Array.isArray(ids)) {
+        const s = new Set(ids);
+        if (next) s.add(id);
+        else s.delete(id);
+        cachedIds = Array.from(s);
+      }
+
+      // small “pop” animation
+      setAnim(true);
+      clearTimeout(tRef.current);
+      tRef.current = setTimeout(() => setAnim(false), 260);
+
+      window.dispatchEvent(new Event("wishlist:changed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className={[
-          "wish-btn",
-          filled ? "is-filled" : "",
-          anim ? "is-anim" : "",
-          className,
-        ].join(" ")}
-        onClick={async function onClick(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          if (disabled) return;
-
-          try {
-            const next = await toggleWishlist(item);
-            setFilled(next);
-            setAnim(true);
-            clearTimeout(tRef.current);
-            tRef.current = setTimeout(() => setAnim(false), 260);
-          } catch {
-            // optional: show toast
-          }
-        }
-        }
-        disabled={disabled}
-        aria-label={title}
-        title={title}
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            d="M6 3.5C6 2.67 6.67 2 7.5 2h9C17.33 2 18 2.67 18 3.5V22l-6-3-6 3V3.5z"
-            fill={filled ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      <style>{`
-        .wish-btn{
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          width:34px;
-          height:34px;
-          border-radius:10px;
-          border:1px solid var(--colorvar--border);
-          color: var(--colorvar--text-secondary);
-          background: transparent;
-          transition: transform 120ms ease, background 120ms ease, color 120ms ease;
-        }
-        .wish-btn:hover{ background: var(--colorvar--active-bg); }
-        .wish-btn:disabled{ opacity: .5; cursor: not-allowed; }
-        .wish-btn.is-filled{ color: var(--colorvar--accent); }
-        .wish-btn.is-anim{ animation: wishpop 240ms ease-out; }
-        @keyframes wishpop{
-          0%{ transform: scale(1); }
-          45%{ transform: scale(1.18); }
-          100%{ transform: scale(1); }
-        }
-      `}</style>
-    </>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={title}
+      title={title}
+      className={[
+        "w-9 h-9 rounded-full border border-colorvar--border flex items-center justify-center",
+        "bg-colorvar--panel-bg hover:bg-colorvar--active-bg transition-colors",
+        anim ? "scale-110" : "scale-100",
+        className,
+      ].join(" ")}
+    >
+      <span className={filled ? "text-colorvar--accent" : "text-colorvar--text-secondary"}>
+        {/* simple icon */}
+        {filled ? "★" : "☆"}
+      </span>
+    </button>
   );
 }

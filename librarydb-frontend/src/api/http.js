@@ -1,55 +1,71 @@
-// File: src/api/http.js
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-export const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api";
+// src/api/http.js
 
-function joinUrl(base, path) {
-  if (!base) return path;
-  return `${base}${path}`;
-}
+const API_BASE =
+  (import.meta?.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "") ||
+  "http://localhost:8000";
 
-function apiPath(path) {
-  // If caller already passed "/api/..." keep it.
-  if (path.startsWith("/api/")) return path;
-
-  // Ensure prefix starts with /
-  const prefix = API_PREFIX.startsWith("/") ? API_PREFIX : `/${API_PREFIX}`;
-
-  // Ensure path starts with /
-  const p = path.startsWith("/") ? path : `/${path}`;
-
-  return `${prefix}${p}`;
+function buildUrl(path) {
+  const clean = String(path ?? "").replace(/^\/+/, "");
+  // Backend routes are /api/auth/me, /api/wishlist/me, /api/rentals/..., etc.
+  return `${API_BASE}/api/${clean}`;
 }
 
 async function parseJson(res) {
-  const txt = await res.text();
+  if (res.status === 204) return null;
+
+  const text = await res.text();
+  if (!text) return null;
+
   try {
-    return txt ? JSON.parse(txt) : null;
+    return JSON.parse(text);
   } catch {
-    return { error: txt || `HTTP ${res.status}` };
+    // If backend returns plain text or HTML error
+    return text;
   }
 }
 
+function pickErrorMessage(res, data) {
+  return (
+    (data && typeof data === "object" && data.error) ||
+    (typeof data === "string" ? data : null) ||
+    `HTTP ${res.status}`
+  );
+}
+
 export async function apiGet(path) {
-  const url = joinUrl(API_BASE_URL, apiPath(path));
-  const res = await fetch(url, {
+  const res = await fetch(buildUrl(path), {
     method: "GET",
-    headers: { Accept: "application/json" },
     credentials: "include",
+    headers: {
+      Accept: "application/json",
+    },
   });
+
   const data = await parseJson(res);
-  if (!res.ok) throw new Error(data?.error || `GET ${url} failed: ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(pickErrorMessage(res, data));
+  }
+
   return data;
 }
 
-export async function apiPost(path, body) {
-  const url = joinUrl(API_BASE_URL, apiPath(path));
-  const res = await fetch(url, {
+export async function apiPost(path, body = {}) {
+  const res = await fetch(buildUrl(path), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body ?? {}),
   });
+
   const data = await parseJson(res);
-  if (!res.ok) throw new Error(data?.error || `POST ${url} failed: ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(pickErrorMessage(res, data));
+  }
+
   return data;
 }

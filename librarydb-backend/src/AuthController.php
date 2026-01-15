@@ -3,18 +3,51 @@ declare(strict_types=1);
 
 final class AuthController extends Controller
 {
-    public function __construct(private UserRepository $users) {}
+    public function __construct(private UserRepository $users)
+    {
+    }
 
     private function publicUser(array $u): array
     {
         return [
-            'userid' => (int)$u['userid'],
-            'email' => (string)$u['email'],
-            'name' => (string)$u['name'],
-            'role' => (string)$u['role'],
-            'createdat' => (string)$u['createdat'],
+            'userid' => (int) $u['userid'],
+            'email' => (string) $u['email'],
+            'name' => (string) $u['name'],
+            'role' => (string) $u['role'],
+            'createdat' => (string) $u['createdat'],
         ];
     }
+
+    function requireUser(PDO $pdo): array
+    {
+        $uid = $_SESSION['userid'] ?? null;
+        if (!$uid) {
+            jsonOut(['error' => 'Not authenticated'], 401);
+            exit;
+        }
+
+        $st = $pdo->prepare("SELECT userid, email, name, role, createdat FROM users WHERE userid = :id LIMIT 1");
+        $st->execute([':id' => (int) $uid]);
+        $u = $st->fetch(PDO::FETCH_ASSOC);
+
+        if (!$u) {
+            jsonOut(['error' => 'Session user not found'], 401);
+            exit;
+        }
+
+        return $u;
+    }
+
+    function requireAdmin(PDO $pdo): array
+    {
+        $u = requireUser($pdo);
+        if (($u['role'] ?? '') !== 'admin') {
+            jsonOut(['error' => 'Forbidden'], 403);
+            exit;
+        }
+        return $u;
+    }
+
 
     public function me(): void
     {
@@ -24,7 +57,7 @@ final class AuthController extends Controller
             return;
         }
 
-        $u = $this->users->findById((int)$uid);
+        $u = $this->users->findById((int) $uid);
         if (!$u) {
             $this->json(['error' => 'Session user not found'], 401);
             return;
@@ -39,7 +72,7 @@ final class AuthController extends Controller
             $b = $this->body();
             $email = strtolower(trim($this->requireString($b, 'email')));
             $name = trim($this->requireString($b, 'name'));
-            $password = (string)$this->requireString($b, 'password');
+            $password = (string) $this->requireString($b, 'password');
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->json(['error' => 'Invalid email'], 400);
@@ -81,16 +114,16 @@ final class AuthController extends Controller
         try {
             $b = $this->body();
             $email = strtolower(trim($this->requireString($b, 'email')));
-            $password = (string)$this->requireString($b, 'password');
+            $password = (string) $this->requireString($b, 'password');
 
             $u = $this->users->findByEmail($email);
-            if (!$u || !password_verify($password, (string)$u['passwordhash'])) {
+            if (!$u || !password_verify($password, (string) $u['passwordhash'])) {
                 $this->json(['error' => 'Invalid credentials'], 401);
                 return;
             }
 
             session_regenerate_id(true);
-            $_SESSION['userid'] = (int)$u['userid'];
+            $_SESSION['userid'] = (int) $u['userid'];
 
             $this->json(['user' => $this->publicUser($u)]);
         } catch (InvalidArgumentException $e) {

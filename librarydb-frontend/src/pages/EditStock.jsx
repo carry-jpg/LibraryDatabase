@@ -232,6 +232,7 @@ export default function EditStock({ onSaved }) {
     try {
       await apiPostJson("/stock/delete", { stockId: Number(stockid) });
       await loadStock();
+      window.dispatchEvent(new Event("data:changed"));
     } catch (e) {
       alert(String(e?.message || e));
     }
@@ -359,6 +360,7 @@ export default function EditStock({ onSaved }) {
       });
       setSaveMsg("Saved.");
       await loadStock();
+      window.dispatchEvent(new Event("data:changed"));
       onSaved?.();
     } catch (e) {
       setSaveErr(String(e?.message || e));
