@@ -1,3 +1,5 @@
+![logo](https://github.com/user-attachments/assets/091300b7-a11c-4610-b752-7bc7e55639d5)
+
 # TomeNest
 
 TomeNest is a library management web app: browse a catalog, manage stock (admin), maintain wishlists, and handle rentals (request → approve → return).  
